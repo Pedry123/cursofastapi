@@ -1,5 +1,7 @@
 from http import HTTPStatus
 
+from fast_zero.schemas import UserPublic
+
 
 def test_root_deve_retornar_ola_mundo(client):
     """
@@ -45,30 +47,55 @@ def test_create_user(client):
     }
 
 
+def test_username_already_created(client, user):
+    # user_schema = UserSchema.model_validate(user).model_dump()
+    response = client.post(
+        '/users/',
+        json={
+            'username': user.username,
+            'email': 'teste@mail.com',
+            'password': 'senha123',
+        },
+    )
+
+    assert response.status_code == HTTPStatus.CONFLICT
+    assert response.json() == {'detail': 'Username already exists'}
+
+
+def test_email_already_created(client, user):
+    response = client.post(
+        '/users',
+        json={'username': 'nome', 'email': user.email, 'password': 'password'},
+    )
+
+    assert response.status_code == HTTPStatus.CONFLICT
+    assert response.json() == {'detail': 'Email already exists'}
+
+
 def test_read_users(client):
     response = client.get('/users/')
 
     assert response.status_code == HTTPStatus.OK
-    assert response.json() == {
-        'users': [
-            {
-                'username': 'alice',
-                'email': 'alice@example.com',
-                'id': 1,
-            },
-        ]
-    }
+    assert response.json() == {'users': []}
 
 
-def test_read_one_user(client):
-    response = client.get('/users/1')
+def test_read_users_with_user(client, user):
+
+    user_schema = UserPublic.model_validate(user).model_dump()
+    # transforma a classe do SQLAlchemy num schema do pydantic
+
+    response = client.get('/users/')
 
     assert response.status_code == HTTPStatus.OK
-    assert response.json() == {
-        'username': 'alice',
-        'email': 'alice@example.com',
-        'id': 1,
-    }
+    assert response.json() == {'users': [user_schema]}
+
+
+def test_read_one_user(client, user):
+    user_schema = UserPublic.model_validate(user).model_dump()
+    response = client.get(f'/users/{user.id}')
+
+    assert response.status_code == HTTPStatus.OK
+    assert response.json() == user_schema
 
 
 def test_read_one_user_not_found(client):
@@ -78,13 +105,13 @@ def test_read_one_user_not_found(client):
     assert response.json() == {'detail': 'User not found'}
 
 
-# por enquanto estão ruins esses testes. CODE SMELL:
-# - O usuário lido em test_read_users é o mesmo criado em test_create_user
-# - Portanto, eles dependem da ordem de execução
-# - se eu rodar só o test_read_users, ele vai falhar
+#  estavam ruins os antigos testes. CODE SMELL:
+# - O usuário era lido em test_read_users é o mesmo criado em test_create_user
+# - Portanto, eles dependiam da ordem de execução
+# - se eu rodasse só o test_read_users, ele ia falhar
 
 
-def test_update_user(client):
+def test_update_user(client, user):
     response = client.put(
         '/users/1',
         json={
@@ -102,15 +129,10 @@ def test_update_user(client):
     }
 
 
-def test_delete_user(client):
+def test_delete_user(client, user):
     response = client.delete('/users/1')
 
-    assert response.status_code == HTTPStatus.OK
-    assert response.json() == {
-        'username': 'bob',
-        'email': 'bob@example.com',
-        'id': 1,
-    }
+    assert response.json() == {'message': 'User deleted'}
 
 
 def test_update_not_found(client):

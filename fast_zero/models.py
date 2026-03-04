@@ -22,4 +22,7 @@ class User:
     created_at: Mapped[datetime] = mapped_column(
         init=False, server_default=func.now()
     )  # o tempo do servidor é quem vai decidir
+    updated_at: Mapped[datetime] = mapped_column(
+        init=False, onupdate=func.now(), server_default=func.now()
+    )
     # os valores None serão preenchidos quando houver comunicação com o banco
